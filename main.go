@@ -1,7 +1,7 @@
 package main
 
 import (
-	"os"
+	"context"
 	"os/signal"
 	"runtime"
 	"sync"
@@ -37,24 +37,19 @@ func main() {
 
 	close(taskChan)
 
-	// Create chan for stop signal
-	stopChan := make(chan struct{})
-
 	// Capture termination signals to gracefully shutdown workers
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
-	go func() {
-		<-signalChan
-		Log.Info.Println("Received SIGTERM/SIGINT, exiting...")
-		close(stopChan)
-	}()
+	ctx, stop := signal.NotifyContext(context.Background(),
+		syscall.SIGTERM,
+		syscall.SIGINT,
+	)
+	defer stop()
 
 	var wg sync.WaitGroup
 
 	// Start workers
 	for i := 1; i <= minInt(config.Workers, len(tasks)); i++ {
 		wg.Add(1)
-		go worker(i, taskChan, &wg, stopChan)
+		go worker(ctx, i, taskChan, &wg)
 	}
 
 	// Wait for all workers to complete

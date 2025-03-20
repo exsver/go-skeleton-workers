@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"sync"
 	"time"
 )
 
 // worker processes tasks from the tasks channel until it receives a stop signal or until no more tasks are left in the channel
-func worker(id int, tasks <-chan Task, wg *sync.WaitGroup, stopChan <-chan struct{}) {
+func worker(ctx context.Context, id int, tasks <-chan Task, wg *sync.WaitGroup) {
 	defer func() {
 		Log.Info.Printf("Worker %d: Stopped\n", id)
 
@@ -17,7 +18,7 @@ func worker(id int, tasks <-chan Task, wg *sync.WaitGroup, stopChan <-chan struc
 
 	for task := range tasks {
 		select {
-		case <-stopChan:
+		case <-ctx.Done():
 			Log.Info.Printf("Worker %d: Received stop signal\n", id)
 			return
 		default:
